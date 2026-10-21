@@ -133,6 +133,23 @@ export function CreateCompanyForm() {
           </div>
         </div>
 
+        <div className="p-3 bg-neutral-50 border border-neutral-200 space-y-1.5">
+          <label htmlFor="has_subscriptions" className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              name="has_subscriptions"
+              id="has_subscriptions"
+              className="w-4 h-4 rounded-none accent-neutral-900 border-neutral-300 cursor-pointer"
+            />
+            <span className="text-xs font-semibold text-neutral-900">
+              Habilitar Módulo de Suscripciones (Estilo Cafecito / Membresías VIP)
+            </span>
+          </label>
+          <p className="text-[11px] text-neutral-500 pl-6 leading-relaxed">
+            Permite a esta empresa ofrecer suscripciones mensuales para monetizar contenido extra o beneficios VIP, manteniendo sus sorteos independientes.
+          </p>
+        </div>
+
         <div className="pt-2 flex items-center justify-between border-t border-neutral-100">
           <span className="text-[11px] text-neutral-400">
             Los datos se aíslan mediante RLS multi-tenant por company_id.

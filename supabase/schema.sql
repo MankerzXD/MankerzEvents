@@ -27,9 +27,21 @@ CREATE TABLE IF NOT EXISTS public.companies (
     description TEXT,
     admin_email TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+    has_subscriptions BOOLEAN NOT NULL DEFAULT false,
+    subscription_title TEXT DEFAULT 'Membresía Mensual / Cafecito',
+    subscription_price NUMERIC(10, 2) DEFAULT 5.00,
+    subscription_perks TEXT DEFAULT 'Acceso a sorteos exclusivos, contenido VIP y chat comunitario',
+    subscription_content TEXT DEFAULT '¡Bienvenido a la zona exclusiva para miembros!',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Si la tabla ya existe, agregar columnas opcionales de suscripción
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS has_subscriptions BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS subscription_title TEXT DEFAULT 'Membresía Mensual / Cafecito';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS subscription_price NUMERIC(10, 2) DEFAULT 5.00;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS subscription_perks TEXT DEFAULT 'Acceso a sorteos exclusivos, contenido VIP y chat comunitario';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS subscription_content TEXT DEFAULT '¡Bienvenido a la zona exclusiva para miembros!';
 
 -- 4. PROFILES TABLE (Linked to Supabase Auth users)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -72,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.participaciones (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 7. SUBSCRIPTIONS TABLE
+-- 7. SUBSCRIPTIONS TABLE (Membresías / Cafecito)
 CREATE TABLE IF NOT EXISTS public.subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
@@ -80,9 +92,21 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     email TEXT NOT NULL,
     full_name TEXT NOT NULL,
     plan_tier TEXT NOT NULL DEFAULT 'standard',
+    amount NUMERIC(10, 2) NOT NULL DEFAULT 5.00,
     status subscription_status NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) DEFAULT 5.00;
+
+-- 8. EXCLUSIVE POSTS TABLE (Contenido exclusivo estilo Cafecito / Patreon)
+CREATE TABLE IF NOT EXISTS public.exclusive_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    preview TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
 -- INDEXES FOR MULTI-TENANT QUERY OPTIMIZATION
@@ -91,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_sorteos_company_id ON public.sorteos(company_id);
 CREATE INDEX IF NOT EXISTS idx_participaciones_company_id ON public.participaciones(company_id);
 CREATE INDEX IF NOT EXISTS idx_participaciones_sorteo_id ON public.participaciones(sorteo_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_company_id ON public.profiles(company_id);
+CREATE INDEX IF NOT EXISTS idx_exclusive_posts_company_id ON public.exclusive_posts(company_id);
 
 -- ==============================================================================
 -- 8. HELPER FUNCTIONS FOR SECURITY & RBAC
@@ -177,6 +202,31 @@ CREATE POLICY "Company admin can view participaciones"
     TO authenticated
     USING (public.is_company_admin_of(company_id));
 
+-- Exclusive Posts: Public can read previews; Company admin has full management
+ALTER TABLE public.exclusive_posts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read exclusive posts"
+    ON public.exclusive_posts FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+CREATE POLICY "Company admin manage exclusive posts"
+    ON public.exclusive_posts FOR ALL
+    TO authenticated
+    USING (public.is_company_admin_of(company_id))
+    WITH CHECK (public.is_company_admin_of(company_id));
+
+-- Subscriptions: Public can insert new subscriptions; Company admin can view their members
+CREATE POLICY "Public can insert subscriptions"
+    ON public.subscriptions FOR INSERT
+    TO anon, authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Company admin view subscriptions"
+    ON public.subscriptions FOR SELECT
+    TO authenticated
+    USING (public.is_company_admin_of(company_id));
+
 -- ==============================================================================
 -- 10. TRIGGERS: AUTOMATIC PROFILE SYNC & SUPER ADMIN ASSIGNMENT
 -- ==============================================================================
@@ -226,13 +276,24 @@ CREATE TRIGGER on_auth_user_created
 -- ==============================================================================
 -- 11. SAMPLE DATA (Demo company + sample raffle)
 -- ==============================================================================
-INSERT INTO public.companies (id, name, slug, description, admin_email, status)
+INSERT INTO public.companies (id, name, slug, description, admin_email, status, has_subscriptions, subscription_title, subscription_price, subscription_perks, subscription_content)
 VALUES
-    ('c1111111-1111-1111-1111-111111111111', 'Demo Eventos SRL', 'demo-eventos', 'Plataforma oficial de sorteos corporativos y rifas', 'admin@demoeventos.com', 'active'),
-    ('c2222222-2222-2222-2222-222222222222', 'Apex Gaming Fest', 'apex-gaming', 'Torneos y sorteos de consolas y periféricos gaming', 'contact@apexgaming.com', 'active')
-ON CONFLICT (slug) DO UPDATE SET admin_email = EXCLUDED.admin_email;
+    ('c1111111-1111-1111-1111-111111111111', 'Demo Eventos SRL', 'demo-eventos', 'Plataforma oficial de sorteos corporativos y membresías', 'admin@demoeventos.com', 'active', true, 'Cafecito VIP / Membresía', 5.00, 'Acceso a sorteos VIP mensuales, adelantos de eventos y grupo privado', '¡Bienvenido a la comunidad exclusiva! Aquí compartimos códigos especiales para sorteos y noticias anticipadas.'),
+    ('c2222222-2222-2222-2222-222222222222', 'Apex Gaming Fest', 'apex-gaming', 'Torneos y sorteos de consolas y periféricos gaming', 'contact@apexgaming.com', 'active', false, 'Membresía Gamer', 8.00, 'Acceso a torneos cerrados', 'Contenido exclusivo para gamers.')
+ON CONFLICT (slug) DO UPDATE SET 
+    admin_email = EXCLUDED.admin_email,
+    has_subscriptions = EXCLUDED.has_subscriptions,
+    subscription_title = EXCLUDED.subscription_title,
+    subscription_price = EXCLUDED.subscription_price,
+    subscription_perks = EXCLUDED.subscription_perks,
+    subscription_content = EXCLUDED.subscription_content;
 
 INSERT INTO public.sorteos (id, company_id, title, description, prize, ticket_price, total_tickets, sold_tickets, draw_date, status)
 VALUES
     ('a1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Gran Sorteo PlayStation 5 Slim + 2 Juegos', 'Participa por una consola PS5 Slim de 1TB edición digital con dos mandos DualSense y juegos a elección.', 'PlayStation 5 Slim 1TB + 2 Mandos', 15.00, 200, 42, timezone('utc'::text, now() + interval '14 days'), 'active')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.exclusive_posts (id, company_id, title, preview, content)
+VALUES
+    ('e1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Bases y Fechas del Gran Sorteo Aniversario', 'Publicación exclusiva para miembros activos sobre el cronograma del sorteo...', '¡Hola miembros! Como suscriptores VIP, tienen 1 número gratis reservado para el sorteo del mes que viene. Estén atentos al enlace de confirmación.')
 ON CONFLICT (id) DO NOTHING;

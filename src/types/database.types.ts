@@ -7,6 +7,11 @@ export interface Company {
   description?: string | null;
   admin_email: string;
   status: 'active' | 'suspended';
+  has_subscriptions: boolean; // Control exclusivo del Super Admin
+  subscription_title?: string | null;
+  subscription_price?: number | null;
+  subscription_perks?: string | null;
+  subscription_content?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,9 +61,19 @@ export interface Subscription {
   email: string;
   full_name: string;
   plan_tier: string;
+  amount: number;
   status: 'active' | 'inactive' | 'pending';
   created_at: string;
   updated_at: string;
+}
+
+export interface ExclusivePost {
+  id: string;
+  company_id: string;
+  title: string;
+  preview: string;
+  content: string;
+  created_at: string;
 }
 
 export interface Database {
@@ -106,6 +121,14 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Omit<Subscription, 'id'>>;
+      };
+      exclusive_posts: {
+        Row: ExclusivePost;
+        Insert: Omit<ExclusivePost, 'id' | 'created_at'> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<ExclusivePost, 'id'>>;
       };
     };
     Views: Record<string, never>;

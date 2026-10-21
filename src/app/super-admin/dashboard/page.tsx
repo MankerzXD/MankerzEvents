@@ -4,6 +4,7 @@ import { getCompanies } from '@/actions/company-actions';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import { Navbar } from '@/components/Navbar';
 import { CreateCompanyForm } from '@/components/CreateCompanyForm';
+import { CompanySubscriptionToggle } from '@/components/CompanySubscriptionToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +122,7 @@ export default async function SuperAdminDashboard() {
                   <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Admin Contacto</th>
                   <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Fecha Creación</th>
                   <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Estado</th>
+                  <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Módulo Suscripciones</th>
                   <th className="py-2.5 px-4 font-semibold uppercase tracking-wider text-right">Acción</th>
                 </tr>
               </thead>
@@ -148,6 +150,13 @@ export default async function SuperAdminDashboard() {
                       <span className="inline-block px-2 py-0.5 text-[10px] font-medium border border-neutral-300 bg-white text-neutral-800 uppercase">
                         {company.status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <CompanySubscriptionToggle
+                        companyId={company.id}
+                        initialEnabled={company.has_subscriptions}
+                        companyName={company.name}
+                      />
                     </td>
                     <td className="py-3 px-4 text-right space-x-2">
                       <a
