@@ -2,7 +2,10 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getCompanyBySlug } from '@/actions/company-actions';
 import { getSorteosByCompanyId } from '@/actions/sorteo-actions';
+import { getExclusivePosts } from '@/actions/post-actions';
 import { BuyTicketModal } from '@/components/BuyTicketModal';
+import { SubscribeModal } from '@/components/SubscribeModal';
+import { ExclusivePostsFeed } from '@/components/ExclusivePostsFeed';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +24,8 @@ export async function generateMetadata({ params }: Props) {
   }
 
   return {
-    title: `${company.name} — Sorteos y Rifas Oficiales`,
-    description: company.description || `Participa en los sorteos oficiales de ${company.name}.`,
+    title: `${company.name} — Sorteos y Membresías Oficiales`,
+    description: company.description || `Participa en los sorteos oficiales y contenido exclusivo de ${company.name}.`,
   };
 }
 
@@ -35,6 +38,9 @@ export default async function TenantPublicPage({ params }: Props) {
   }
 
   const sorteos = await getSorteosByCompanyId(company.id);
+  const exclusivePosts = company.has_subscriptions
+    ? await getExclusivePosts(company.id)
+    : [];
 
   return (
     <div className="min-h-screen bg-[#fbfbfb]">
@@ -73,26 +79,93 @@ export default async function TenantPublicPage({ params }: Props) {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
         {/* Company Presentation */}
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-block px-2.5 py-0.5 bg-white border border-neutral-300 text-[11px] font-mono uppercase text-neutral-700">
-            Sorteos Oficiales
+        <div className="max-w-3xl space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 bg-white border border-neutral-300 text-[11px] font-mono uppercase text-neutral-700">
+              Página Oficial
+            </span>
+            {company.has_subscriptions && (
+              <span className="px-2.5 py-0.5 bg-neutral-900 text-white text-[11px] font-mono uppercase">
+                Suscripciones & Sorteos
+              </span>
+            )}
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
             {company.name}
           </h1>
           <p className="text-sm text-neutral-600 leading-relaxed">
-            {company.description || 'Bienvenido a la página oficial de sorteos. Adquiere tus números de participación de forma segura.'}
+            {company.description || 'Bienvenido a la página oficial. Adquiere tus números de participación para sorteos de manera independiente o únete a nuestra membresía mensual.'}
           </p>
         </div>
 
-        {/* Raffles Grid */}
+        {/* Optional Membership / Cafecito Card (if Super Admin enabled it) */}
+        {company.has_subscriptions && (
+          <div className="bg-white border-2 border-neutral-900 p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-neutral-200">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-neutral-900"></span>
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-600">
+                    Membresía Mensual • Estilo Cafecito
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
+                  {company.subscription_title || 'Cafecito VIP / Membresía'}
+                </h2>
+                <p className="text-xs text-neutral-600 max-w-xl leading-relaxed">
+                  Apoya a {company.name} de forma mensual para desbloquear publicaciones secretas, beneficios preferenciales y participación en actividades especiales.
+                </p>
+              </div>
+
+              <div className="bg-neutral-50 border border-neutral-200 p-4 min-w-[200px] text-right">
+                <span className="text-[10px] font-mono uppercase text-neutral-500 block">
+                  Aporte Mensual
+                </span>
+                <span className="text-2xl font-bold font-mono text-neutral-900">
+                  ${company.subscription_price || 5.00} <span className="text-xs font-normal text-neutral-500">USD</span>
+                </span>
+                <span className="block text-[10px] text-neutral-400 mt-0.5">
+                  Cancela cuando quieras
+                </span>
+              </div>
+            </div>
+
+            {/* Perks & Action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
+                  Beneficios Incluidos:
+                </span>
+                <p className="text-xs text-neutral-600">
+                  ✓ {company.subscription_perks || 'Acceso al Muro VIP, noticias anticipadas y sorteos mensuales para miembros.'}
+                </p>
+              </div>
+
+              <SubscribeModal
+                companyId={company.id}
+                companySlug={company.slug}
+                companyName={company.name}
+                planTitle={company.subscription_title || 'Cafecito VIP'}
+                price={company.subscription_price || 5.00}
+                perks={company.subscription_perks || 'Acceso a contenido VIP y beneficios exclusivos'}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Raffles Grid (Independent from subscriptions) */}
         <div className="space-y-6">
-          <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
-              Sorteos Activos ({sorteos.length})
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between pb-3 border-b border-neutral-200 gap-1">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+                Sorteos Oficiales ({sorteos.length})
+              </h2>
+              <span className="text-xs text-neutral-500 font-normal">
+                — Compra de participaciones independientes
+              </span>
+            </div>
             <span className="text-xs text-neutral-500 font-mono">
-              Participaciones verificadas
+              Participaciones verificadas al instante
             </span>
           </div>
 
@@ -192,6 +265,30 @@ export default async function TenantPublicPage({ params }: Props) {
             </div>
           )}
         </div>
+
+        {/* Section: Exclusive Posts / VIP Wall (Only shown if subscriptions enabled) */}
+        {company.has_subscriptions && (
+          <div className="space-y-6 pt-6 border-t border-neutral-200">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+                  Muro VIP & Contenido Exclusivo ({exclusivePosts.length})
+                </h2>
+                <p className="text-xs text-neutral-500">
+                  Publicaciones y novedades reservadas para miembros de la suscripción mensual.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-neutral-400">
+                🔒 Área Protegida
+              </span>
+            </div>
+
+            <ExclusivePostsFeed
+              posts={exclusivePosts}
+              companyName={company.name}
+            />
+          </div>
+        )}
       </main>
 
       <footer className="border-t border-neutral-200 bg-white py-8 mt-20 text-center text-xs text-neutral-500 space-y-1">
@@ -203,3 +300,4 @@ export default async function TenantPublicPage({ params }: Props) {
     </div>
   );
 }
+

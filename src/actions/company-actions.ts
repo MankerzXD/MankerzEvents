@@ -286,10 +286,11 @@ export async function getCompanyBySlug(slug: string): Promise<Company | null> {
       .single();
 
     if (data) {
+      const comp = data as any;
       return {
-        ...data,
-        has_subscriptions: data.has_subscriptions ?? false,
-      };
+        ...comp,
+        has_subscriptions: comp.has_subscriptions ?? false,
+      } as Company;
     }
   }
 

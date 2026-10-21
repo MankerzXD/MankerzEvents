@@ -31,8 +31,8 @@ export function CompanySubscribersSection({
 
     try {
       const res = await addSubscriber(formData);
-      if (res.success && res.subscriber) {
-        setSubscribers([res.subscriber, ...subscribers]);
+      if (res.success && res.subscription) {
+        setSubscribers([res.subscription, ...subscribers]);
         form.reset();
         setShowAddForm(false);
       } else {
