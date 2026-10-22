@@ -109,6 +109,17 @@ CREATE TABLE IF NOT EXISTS public.exclusive_posts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- 9. SUBSCRIPTION TIERS (Hasta 3 membresías activas por empresa, para más contactar mankerzStudio)
+CREATE TABLE IF NOT EXISTS public.subscription_tiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    price NUMERIC(10, 2) NOT NULL DEFAULT 5.00,
+    perks TEXT NOT NULL DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
 -- INDEXES FOR MULTI-TENANT QUERY OPTIMIZATION
 CREATE INDEX IF NOT EXISTS idx_companies_slug ON public.companies(slug);
 CREATE INDEX IF NOT EXISTS idx_sorteos_company_id ON public.sorteos(company_id);
@@ -116,6 +127,7 @@ CREATE INDEX IF NOT EXISTS idx_participaciones_company_id ON public.participacio
 CREATE INDEX IF NOT EXISTS idx_participaciones_sorteo_id ON public.participaciones(sorteo_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_company_id ON public.profiles(company_id);
 CREATE INDEX IF NOT EXISTS idx_exclusive_posts_company_id ON public.exclusive_posts(company_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_tiers_company_id ON public.subscription_tiers(company_id);
 
 -- ==============================================================================
 -- 8. HELPER FUNCTIONS FOR SECURITY & RBAC
@@ -227,6 +239,20 @@ CREATE POLICY "Company admin view subscriptions"
     TO authenticated
     USING (public.is_company_admin_of(company_id));
 
+-- Subscription Tiers: Public can view active tiers; Company admin can manage up to 3 tiers
+ALTER TABLE public.subscription_tiers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read active subscription tiers"
+    ON public.subscription_tiers FOR SELECT
+    TO anon, authenticated
+    USING (is_active = true OR public.is_company_admin_of(company_id));
+
+CREATE POLICY "Company admin manage subscription tiers"
+    ON public.subscription_tiers FOR ALL
+    TO authenticated
+    USING (public.is_company_admin_of(company_id))
+    WITH CHECK (public.is_company_admin_of(company_id));
+
 -- ==============================================================================
 -- 10. TRIGGERS: AUTOMATIC PROFILE SYNC & SUPER ADMIN ASSIGNMENT
 -- ==============================================================================
@@ -296,4 +322,10 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.exclusive_posts (id, company_id, title, preview, content)
 VALUES
     ('e1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Bases y Fechas del Gran Sorteo Aniversario', 'Publicación exclusiva para miembros activos sobre el cronograma del sorteo...', '¡Hola miembros! Como suscriptores VIP, tienen 1 número gratis reservado para el sorteo del mes que viene. Estén atentos al enlace de confirmación.')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.subscription_tiers (id, company_id, title, price, perks, is_active)
+VALUES
+    ('t1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Cafecito Bronce', 3.00, 'Acceso al Muro VIP y publicaciones exclusivas de la comunidad.', true),
+    ('t2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Membresía Plata VIP', 6.00, 'Acceso al Muro VIP + 1 número extra en sorteos oficiales + grupo privado.', true)
 ON CONFLICT (id) DO NOTHING;

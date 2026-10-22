@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCompanyBySlug } from '@/actions/company-actions';
 import { getSorteosByCompanyId } from '@/actions/sorteo-actions';
 import { getExclusivePosts } from '@/actions/post-actions';
+import { getActiveSubscriptionTiersByCompany } from '@/actions/subscription-tier-actions';
 import { BuyTicketModal } from '@/components/BuyTicketModal';
 import { SubscribeModal } from '@/components/SubscribeModal';
 import { ExclusivePostsFeed } from '@/components/ExclusivePostsFeed';
@@ -40,6 +41,9 @@ export default async function TenantPublicPage({ params }: Props) {
   const sorteos = await getSorteosByCompanyId(company.id);
   const exclusivePosts = company.has_subscriptions
     ? await getExclusivePosts(company.id)
+    : [];
+  const activeTiers = company.has_subscriptions
+    ? await getActiveSubscriptionTiersByCompany(company.id)
     : [];
 
   return (
@@ -98,58 +102,114 @@ export default async function TenantPublicPage({ params }: Props) {
           </p>
         </div>
 
-        {/* Optional Membership / Cafecito Card (if Super Admin enabled it) */}
+        {/* Optional Membership / Cafecito Tiers Section (if Super Admin enabled it) */}
         {company.has_subscriptions && (
-          <div className="bg-white border-2 border-neutral-900 p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-neutral-200">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-neutral-900"></span>
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-600">
-                    Membresía Mensual • Estilo Cafecito
-                  </span>
-                </div>
-                <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
-                  {company.subscription_title || 'Cafecito VIP / Membresía'}
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between pb-3 border-b border-neutral-200 gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="w-2.5 h-2.5 bg-neutral-900 inline-block"></span>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+                  Membresías Mensuales • Estilo Cafecito ({activeTiers.length || 1})
                 </h2>
-                <p className="text-xs text-neutral-600 max-w-xl leading-relaxed">
-                  Apoya a {company.name} de forma mensual para desbloquear publicaciones secretas, beneficios preferenciales y participación en actividades especiales.
-                </p>
               </div>
-
-              <div className="bg-neutral-50 border border-neutral-200 p-4 min-w-[200px] text-right">
-                <span className="text-[10px] font-mono uppercase text-neutral-500 block">
-                  Aporte Mensual
-                </span>
-                <span className="text-2xl font-bold font-mono text-neutral-900">
-                  ${company.subscription_price || 5.00} <span className="text-xs font-normal text-neutral-500">USD</span>
-                </span>
-                <span className="block text-[10px] text-neutral-400 mt-0.5">
-                  Cancela cuando quieras
-                </span>
-              </div>
+              <span className="text-xs text-neutral-500 font-mono">
+                Cancela cuando quieras • Desbloqueo instantáneo
+              </span>
             </div>
 
-            {/* Perks & Action */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
-                  Beneficios Incluidos:
-                </span>
-                <p className="text-xs text-neutral-600">
-                  ✓ {company.subscription_perks || 'Acceso al Muro VIP, noticias anticipadas y sorteos mensuales para miembros.'}
-                </p>
-              </div>
+            {activeTiers.length > 0 ? (
+              <div className={`grid grid-cols-1 ${activeTiers.length === 1 ? 'md:grid-cols-1' : activeTiers.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-6`}>
+                {activeTiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="bg-white border-2 border-neutral-900 p-6 flex flex-col justify-between space-y-6"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                          Membresía
+                        </span>
+                        <span className="text-2xl font-bold font-mono text-neutral-900">
+                          ${tier.price.toFixed(2)}{' '}
+                          <span className="text-xs font-normal text-neutral-500">USD/mes</span>
+                        </span>
+                      </div>
 
-              <SubscribeModal
-                companyId={company.id}
-                companySlug={company.slug}
-                companyName={company.name}
-                planTitle={company.subscription_title || 'Cafecito VIP'}
-                price={company.subscription_price || 5.00}
-                perks={company.subscription_perks || 'Acceso a contenido VIP y beneficios exclusivos'}
-              />
-            </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-neutral-900">
+                          {tier.title}
+                        </h3>
+                        <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+                          ✓ {tier.perks || 'Acceso a publicaciones exclusivas y sorteos VIP.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-neutral-100">
+                      <SubscribeModal
+                        companyId={company.id}
+                        companySlug={company.slug}
+                        companyName={company.name}
+                        planTitle={tier.title}
+                        price={tier.price}
+                        perks={tier.perks || 'Acceso exclusivo'}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border-2 border-neutral-900 p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-neutral-200">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-neutral-900"></span>
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-600">
+                        Membresía Mensual • Estilo Cafecito
+                      </span>
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
+                      {company.subscription_title || 'Cafecito VIP / Membresía'}
+                    </h2>
+                    <p className="text-xs text-neutral-600 max-w-xl leading-relaxed">
+                      Apoya a {company.name} de forma mensual para desbloquear publicaciones secretas, beneficios preferenciales y participación en actividades especiales.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-50 border border-neutral-200 p-4 min-w-[200px] text-right">
+                    <span className="text-[10px] font-mono uppercase text-neutral-500 block">
+                      Aporte Mensual
+                    </span>
+                    <span className="text-2xl font-bold font-mono text-neutral-900">
+                      ${company.subscription_price || 5.00} <span className="text-xs font-normal text-neutral-500">USD</span>
+                    </span>
+                    <span className="block text-[10px] text-neutral-400 mt-0.5">
+                      Cancela cuando quieras
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
+                      Beneficios Incluidos:
+                    </span>
+                    <p className="text-xs text-neutral-600">
+                      ✓ {company.subscription_perks || 'Acceso al Muro VIP, noticias anticipadas y sorteos mensuales para miembros.'}
+                    </p>
+                  </div>
+
+                  <SubscribeModal
+                    companyId={company.id}
+                    companySlug={company.slug}
+                    companyName={company.name}
+                    planTitle={company.subscription_title || 'Cafecito VIP'}
+                    price={company.subscription_price || 5.00}
+                    perks={company.subscription_perks || 'Acceso a contenido VIP y beneficios exclusivos'}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -5,11 +5,13 @@ import { getCompanyBySlug } from '@/actions/company-actions';
 import { getSorteosByCompanyId, getParticipacionesByCompanyId } from '@/actions/sorteo-actions';
 import { getSubscribersByCompany } from '@/actions/subscriber-actions';
 import { getExclusivePosts } from '@/actions/post-actions';
+import { getSubscriptionTiersByCompany } from '@/actions/subscription-tier-actions';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import { Navbar } from '@/components/Navbar';
 import { CreateSorteoForm } from '@/components/CreateSorteoForm';
 import { CompanySubscriptionSettingsForm } from '@/components/CompanySubscriptionSettingsForm';
 import { CreateExclusivePostForm } from '@/components/CreateExclusivePostForm';
+import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +70,9 @@ export default async function TenantAdminPage({ params }: Props) {
     : [];
   const exclusivePosts = company.has_subscriptions
     ? await getExclusivePosts(company.id)
+    : [];
+  const subscriptionTiers = company.has_subscriptions
+    ? await getSubscriptionTiersByCompany(company.id)
     : [];
 
   // Compute metrics
@@ -215,7 +220,15 @@ export default async function TenantAdminPage({ params }: Props) {
               </span>
             </div>
 
-            {/* 1. Subscription Tier Settings */}
+            {/* 1. Subscription Tiers Manager (Up to 3 active tiers, contact mankerzStudio for more) */}
+            <SubscriptionTiersManager
+              companyId={company.id}
+              companySlug={company.slug}
+              companyName={company.name}
+              initialTiers={subscriptionTiers}
+            />
+
+            {/* 2. Welcome Message & Fallback Settings */}
             <CompanySubscriptionSettingsForm
               companyId={company.id}
               companySlug={company.slug}

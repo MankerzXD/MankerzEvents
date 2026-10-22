@@ -5,5 +5,6 @@ export const USER_ROLES = {
   COMPANY_ADMIN: 'company_admin',
   SUBSCRIBER: 'subscriber',
 } as const;
-
 export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+export const MAX_ACTIVE_MEMBERSHIPS_LIMIT = 3;
+export const MANKERZ_STUDIO_EMAIL = 'studio@mankerz.xyz';

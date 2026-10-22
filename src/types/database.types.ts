@@ -76,6 +76,16 @@ export interface ExclusivePost {
   created_at: string;
 }
 
+export interface SubscriptionTier {
+  id: string;
+  company_id: string;
+  title: string;
+  price: number;
+  perks: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -129,6 +139,14 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Omit<ExclusivePost, 'id'>>;
+      };
+      subscription_tiers: {
+        Row: SubscriptionTier;
+        Insert: Omit<SubscriptionTier, 'id' | 'created_at'> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<SubscriptionTier, 'id'>>;
       };
     };
     Views: Record<string, never>;
