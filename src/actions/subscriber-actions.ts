@@ -126,3 +126,36 @@ export async function subscribeToCompany(formData: FormData) {
 export async function addSubscriber(formData: FormData) {
   return subscribeToCompany(formData);
 }
+
+export async function deleteSubscriber(subscriberId: string, companyId: string, companySlug: string) {
+  if (!subscriberId || !companyId) {
+    return { success: false, error: 'ID de suscriptor y empresa son requeridos.' };
+  }
+
+  const isSupabaseConfigured =
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isSupabaseConfigured) {
+    const supabase = await createClient();
+    await supabase
+      .from('subscriptions')
+      .delete()
+      .eq('id', subscriberId)
+      .eq('company_id', companyId);
+  }
+
+  if (fallbackSubscriptions[companyId]) {
+    fallbackSubscriptions[companyId] = fallbackSubscriptions[companyId].filter(
+      (s) => s.id !== subscriberId
+    );
+  }
+
+  if (companySlug) {
+    revalidatePath(`/${companySlug}`);
+    revalidatePath(`/${companySlug}/admin`);
+  }
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}

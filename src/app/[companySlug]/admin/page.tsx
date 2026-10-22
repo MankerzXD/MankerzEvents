@@ -12,6 +12,7 @@ import { CreateSorteoForm } from '@/components/CreateSorteoForm';
 import { CompanySubscriptionSettingsForm } from '@/components/CompanySubscriptionSettingsForm';
 import { CreateExclusivePostForm } from '@/components/CreateExclusivePostForm';
 import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
+import { CompanySubscribersTable } from '@/components/CompanySubscribersTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -299,72 +300,13 @@ export default async function TenantAdminPage({ params }: Props) {
               </div>
             </div>
 
-            {/* 4. Active Subscribers Table */}
-            <div className="bg-white border border-neutral-200 p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                <div>
-                  <h3 className="text-base font-semibold text-neutral-900">
-                    Suscriptores y Miembros Mensuales ({subscribers.length})
-                  </h3>
-                  <p className="text-xs text-neutral-500">
-                    Comunidad que apoya mensualmente a {company.name}.
-                  </p>
-                </div>
-                <span className="text-xs font-mono font-semibold text-neutral-900">
-                  MRR: ${monthlyRecurringRevenue.toFixed(2)} USD
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-700">
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Miembro</th>
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Email</th>
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Plan</th>
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Aporte Mensual</th>
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Fecha Alta</th>
-                      <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {subscribers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-neutral-500">
-                          Aún no hay suscriptores registrados. Comparte tu enlace /{company.slug} para sumar miembros.
-                        </td>
-                      </tr>
-                    ) : (
-                      subscribers.map((sub) => (
-                        <tr key={sub.id} className="hover:bg-neutral-50 transition-colors">
-                          <td className="py-3 px-4 font-medium text-neutral-900">
-                            {sub.full_name || 'Miembro'}
-                          </td>
-                          <td className="py-3 px-4 font-mono text-neutral-600">
-                            {sub.email}
-                          </td>
-                          <td className="py-3 px-4 text-neutral-800">
-                            {sub.plan_tier}
-                          </td>
-                          <td className="py-3 px-4 font-mono font-semibold text-neutral-900">
-                            ${sub.amount?.toFixed(2) || '5.00'} USD
-                          </td>
-                          <td className="py-3 px-4 font-mono text-neutral-500">
-                            {new Date(sub.created_at).toLocaleDateString('es-ES')}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium border border-neutral-300 text-neutral-800 uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              {sub.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* 4. Active Subscribers Table with Delete Capability */}
+            <CompanySubscribersTable
+              companyId={company.id}
+              companySlug={company.slug}
+              companyName={company.name}
+              initialSubscribers={subscribers}
+            />
           </div>
         ) : (
           <div className="bg-white border border-neutral-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

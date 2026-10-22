@@ -5,6 +5,7 @@ import {
   createSubscriptionTier,
   toggleSubscriptionTier,
   deleteSubscriptionTier,
+  updateSubscriptionTier,
 } from '@/actions/subscription-tier-actions';
 import { MAX_ACTIVE_MEMBERSHIPS_LIMIT, MANKERZ_STUDIO_EMAIL } from '@/lib/constants';
 import { SubscriptionTier } from '@/types/database.types';
@@ -24,6 +25,7 @@ export function SubscriptionTiersManager({
 }: Props) {
   const [tiers, setTiers] = useState<SubscriptionTier[]>(initialTiers);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingTier, setEditingTier] = useState<SubscriptionTier | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -52,6 +54,35 @@ export function SubscriptionTiersManager({
         setShowAddForm(false);
       } else {
         setError(res.error || 'Error al crear la membresía.');
+      }
+    } catch {
+      setError('Error de comunicación con el servidor.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateTier(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingTier) return;
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    formData.append('tier_id', editingTier.id);
+    formData.append('company_id', companyId);
+    formData.append('company_slug', companySlug);
+
+    try {
+      const res = await updateSubscriptionTier(formData);
+      if (res.success && res.tier) {
+        setTiers(tiers.map((t) => (t.id === res.tier.id ? res.tier : t)));
+        setSuccessMsg(`Membresía "${res.tier.title}" actualizada con éxito.`);
+        setEditingTier(null);
+      } else {
+        setError(res.error || 'Error al actualizar la membresía.');
       }
     } catch {
       setError('Error de comunicación con el servidor.');
@@ -329,6 +360,16 @@ export function SubscriptionTiersManager({
                   </td>
                   <td className="py-3 px-4 text-right space-x-2">
                     <button
+                      onClick={() => {
+                        setEditingTier(tier);
+                        setError(null);
+                        setSuccessMsg(null);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-medium border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition-colors cursor-pointer"
+                    >
+                      Editar
+                    </button>
+                    <button
                       onClick={() => handleToggle(tier)}
                       className="px-2.5 py-1 text-[11px] font-medium border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition-colors cursor-pointer"
                     >
@@ -347,6 +388,89 @@ export function SubscriptionTiersManager({
           </tbody>
         </table>
       </div>
+
+      {/* Edit Tier Modal */}
+      {editingTier && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-neutral-900 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start justify-between pb-3 border-b border-neutral-200">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                  Modificar Membresía
+                </span>
+                <h3 className="text-base font-bold text-neutral-900 mt-0.5">
+                  Editar {editingTier.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingTier(null)}
+                className="text-neutral-400 hover:text-neutral-900 text-sm font-mono px-2 py-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTier} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-medium uppercase text-neutral-700 mb-1">
+                  Nombre del Plan / Nivel *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  defaultValue={editingTier.title}
+                  required
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-300 text-neutral-900 focus:outline-none focus:border-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium uppercase text-neutral-700 mb-1">
+                  Precio Mensual ($ USD) *
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  name="price"
+                  defaultValue={editingTier.price}
+                  required
+                  className="w-full px-3 py-2 text-xs font-mono bg-white border border-neutral-300 text-neutral-900 focus:outline-none focus:border-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium uppercase text-neutral-700 mb-1">
+                  Beneficios Incluidos
+                </label>
+                <textarea
+                  name="perks"
+                  rows={3}
+                  defaultValue={editingTier.perks}
+                  className="w-full px-3 py-2 text-xs bg-white border border-neutral-300 text-neutral-900 focus:outline-none focus:border-neutral-900"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-between border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingTier(null)}
+                  className="px-3.5 py-1.5 text-xs text-neutral-600 hover:text-neutral-900"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2 text-xs font-semibold uppercase tracking-wider bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal for Contacting mankerzStudio */}
       {showContactModal && (

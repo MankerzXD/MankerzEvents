@@ -204,3 +204,67 @@ export async function deleteSubscriptionTier(tierId: string, companyId: string, 
 
   return { success: true };
 }
+
+export async function updateSubscriptionTier(formData: FormData) {
+  const tierId = formData.get('tier_id') as string;
+  const companyId = formData.get('company_id') as string;
+  const companySlug = formData.get('company_slug') as string;
+  const title = (formData.get('title') as string)?.trim();
+  const price = parseFloat(formData.get('price') as string);
+  const perks = (formData.get('perks') as string)?.trim() || '';
+
+  if (!tierId || !companyId || !title || isNaN(price) || price <= 0) {
+    return { success: false, error: 'Título y precio mensual válido son requeridos.' };
+  }
+
+  const isSupabaseConfigured =
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isSupabaseConfigured) {
+    const supabase = await createClient();
+    const { data, error } = await (supabase
+      .from('subscription_tiers') as any)
+      .update({
+        title,
+        price,
+        perks,
+      })
+      .eq('id', tierId)
+      .select()
+      .single();
+
+    if (!error && data) {
+      if (companySlug) {
+        revalidatePath(`/${companySlug}`);
+        revalidatePath(`/${companySlug}/admin`);
+      }
+      return {
+        success: true,
+        tier: {
+          ...data,
+          price: typeof data.price === 'string' ? parseFloat(data.price) : data.price,
+        } as SubscriptionTier,
+      };
+    }
+  }
+
+  if (fallbackTiers[companyId]) {
+    const idx = fallbackTiers[companyId].findIndex((t) => t.id === tierId);
+    if (idx !== -1) {
+      fallbackTiers[companyId][idx] = {
+        ...fallbackTiers[companyId][idx],
+        title,
+        price,
+        perks,
+      };
+      if (companySlug) {
+        revalidatePath(`/${companySlug}`);
+        revalidatePath(`/${companySlug}/admin`);
+      }
+      return { success: true, tier: fallbackTiers[companyId][idx] };
+    }
+  }
+
+  return { success: false, error: 'Membresía no encontrada.' };
+}

@@ -228,16 +228,17 @@ CREATE POLICY "Company admin manage exclusive posts"
     USING (public.is_company_admin_of(company_id))
     WITH CHECK (public.is_company_admin_of(company_id));
 
--- Subscriptions: Public can insert new subscriptions; Company admin can view their members
+-- Subscriptions: Public can insert new subscriptions; Company admin can view, update and delete their members
 CREATE POLICY "Public can insert subscriptions"
     ON public.subscriptions FOR INSERT
     TO anon, authenticated
     WITH CHECK (true);
 
-CREATE POLICY "Company admin view subscriptions"
-    ON public.subscriptions FOR SELECT
+CREATE POLICY "Company admin manage subscriptions"
+    ON public.subscriptions FOR ALL
     TO authenticated
-    USING (public.is_company_admin_of(company_id));
+    USING (public.is_company_admin_of(company_id))
+    WITH CHECK (public.is_company_admin_of(company_id));
 
 -- Subscription Tiers: Public can view active tiers; Company admin can manage up to 3 tiers
 ALTER TABLE public.subscription_tiers ENABLE ROW LEVEL SECURITY;
